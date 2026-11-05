@@ -171,7 +171,7 @@ export default function App() {
   }, [analysis]);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased">
+    <div className="min-h-screen bg-[#4169e1] text-slate-900 dark:text-slate-100 font-sans antialiased">
       {/* Top Navigation Bar */}
       <Header
         fileName={fileName}
@@ -250,8 +250,8 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+              <div className="hidden sm:flex items-center gap-2 text-xs text-white/90 font-medium">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />
                 <span>All formulas verified strictly in-app</span>
               </div>
             </div>
