@@ -1,0 +1,6 @@
+{
+  "name": "Quarterly Sales Analytics & Q2-Q3 Executive AI Summary",
+  "description": "Upload sales orders CSV, analyze revenue by region and quarter with interactive charts and tables, and generate a verified 3-sentence AI summary of Q2 to Q3 changes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
