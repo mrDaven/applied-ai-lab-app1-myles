@@ -66,7 +66,11 @@ export const AiSummaryCard: React.FC<AiSummaryCardProps> = ({
                 <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Grounded In Calculated Math
               </span>
               <span className="px-2 py-0.5 rounded-full text-[11px] font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                gemini-3.8-flash
+                {aiResponse?.source === 'gemini-3.8-flash'
+                  ? 'gemini-3.8-flash'
+                  : aiResponse?.source === 'gemini-2.5-flash'
+                  ? 'gemini-2.5-flash'
+                  : 'deterministic-engine'}
               </span>
             </div>
             <p className="text-xs text-indigo-200/80 mt-0.5">
@@ -157,6 +161,16 @@ export const AiSummaryCard: React.FC<AiSummaryCardProps> = ({
           </div>
         ) : null}
 
+        {aiResponse?.notice && !isLoading && (
+          <div className="mb-4 bg-indigo-950/70 border border-indigo-500/40 rounded-2xl p-4 text-xs text-indigo-200 flex items-start gap-2.5">
+            <Info className="w-4 h-4 text-indigo-300 shrink-0 mt-0.5" />
+            <div className="flex-1 leading-relaxed">
+              <span className="font-semibold text-white">Notice: </span>
+              {aiResponse.notice}
+            </div>
+          </div>
+        )}
+
         {!isLoading && aiResponse?.summary && (
           <div>
             {activeView === 'full' ? (
@@ -169,7 +183,14 @@ export const AiSummaryCard: React.FC<AiSummaryCardProps> = ({
                     <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
                     Strict 3-Sentence Executive Constraint Verified
                   </span>
-                  <span>Source: {aiResponse.source === 'gemini-3.8-flash' ? 'Google Gemini 3.8 Flash' : 'Deterministic Calculation'}</span>
+                  <span>
+                    Source:{' '}
+                    {aiResponse.source === 'gemini-3.8-flash'
+                      ? 'Google Gemini 3.8 Flash'
+                      : aiResponse.source === 'gemini-2.5-flash'
+                      ? 'Google Gemini 2.5 Flash'
+                      : 'Verified Deterministic Math Engine'}
+                  </span>
                 </div>
               </div>
             ) : (

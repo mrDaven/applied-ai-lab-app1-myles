@@ -138,13 +138,26 @@ ${JSON.stringify(promptData, null, 2)}
 
 Write the exact three-sentence executive summary explaining which region changed most from Q2 to Q3 and why, using only the calculated numbers above.`;
 
-    // Attempt generation with retry for transient errors (e.g. 503 high demand)
+    // Helper to detect quota or rate-limit saturation without leaking raw JSON to logs
+    const isQuotaOrRateLimitError = (err: any): boolean => {
+      if (!err) return false;
+      const status = err?.status || err?.code || err?.error?.code;
+      if (status === 429 || status === 'RESOURCE_EXHAUSTED') return true;
+      const str = typeof err === 'string' ? err : String(err?.message || '');
+      return str.includes('429') || str.includes('RESOURCE_EXHAUSTED') || str.includes('quota') || str.includes('Quota exceeded');
+    };
+
     let response: any = null;
-    let lastError: any = null;
-    for (let attempt = 1; attempt <= 3; attempt++) {
+    let successfulModel = 'gemini-3.8-flash';
+    let isQuotaHit = false;
+
+    // Try primary model gemini-3.8-flash, with fallback to gemini-2.5-flash
+    const candidateModels = ['gemini-3.8-flash', 'gemini-2.5-flash'];
+
+    for (const modelName of candidateModels) {
       try {
         response = await ai.models.generateContent({
-          model: 'gemini-3.8-flash',
+          model: modelName,
           contents: userPrompt,
           config: {
             systemInstruction,
@@ -173,38 +186,46 @@ Write the exact three-sentence executive summary explaining which region changed
             },
           },
         });
-        if (response && response.text) break;
-      } catch (err: any) {
-        lastError = err;
-        console.warn(`Gemini API attempt ${attempt} failed:`, err?.message || err);
-        if (attempt < 3) {
-          await new Promise((r) => setTimeout(r, attempt * 1000));
+        if (response && response.text) {
+          successfulModel = modelName;
+          break;
         }
+      } catch (err: any) {
+        if (isQuotaOrRateLimitError(err)) {
+          isQuotaHit = true;
+          // Quota reached for this model, check next model or fall back cleanly
+          continue;
+        }
+        // Brief pause for transient errors
+        await new Promise((r) => setTimeout(r, 400));
       }
     }
 
     if (response && response.text) {
-      const rawText = response.text;
-      const parsedJson = JSON.parse(rawText.trim());
-      const sentences = [
-        parsedJson.sentence1.trim(),
-        parsedJson.sentence2.trim(),
-        parsedJson.sentence3.trim(),
-      ];
-      const fullSummary = parsedJson.fullSummary.trim() || sentences.join(' ');
+      try {
+        const rawText = response.text;
+        const parsedJson = JSON.parse(rawText.trim());
+        const sentences = [
+          parsedJson.sentence1.trim(),
+          parsedJson.sentence2.trim(),
+          parsedJson.sentence3.trim(),
+        ];
+        const fullSummary = parsedJson.fullSummary.trim() || sentences.join(' ');
 
-      res.json({
-        summary: fullSummary,
-        sentences,
-        mostChangedRegionName: m.region,
-        calculatedMetricsUsed: payload,
-        source: 'gemini-3.8-flash',
-      });
-      return;
+        res.json({
+          summary: fullSummary,
+          sentences,
+          mostChangedRegionName: m.region,
+          calculatedMetricsUsed: payload,
+          source: successfulModel,
+        });
+        return;
+      } catch {
+        // Fall through to deterministic summary if JSON parsing failed
+      }
     }
 
-    // Graceful fallback to verified deterministic 3-sentence summary if Gemini API is temporarily busy
-    console.warn('Falling back to deterministic 3-sentence summary due to Gemini service load:', lastError?.message);
+    // Graceful verified deterministic 3-sentence summary fallback
     const growthSign = m.netChange >= 0 ? '+' : '-';
     const s1 = `${m.region} experienced the largest revenue change from Q2 to Q3, moving from $${Number(m.q2Revenue).toLocaleString()} to $${Number(m.q3Revenue).toLocaleString()}, a net shift of ${growthSign}$${Math.abs(Number(m.netChange)).toLocaleString()} (${m.pctChange >= 0 ? '+' : ''}${Number(m.pctChange).toFixed(1)}%).`;
     const unitsDir = m.netUnitsChange >= 0 ? 'rose' : 'declined';
@@ -223,16 +244,18 @@ Write the exact three-sentence executive summary explaining which region changed
       mostChangedRegionName: m.region,
       calculatedMetricsUsed: payload,
       source: 'fallback-deterministic',
-      notice: 'Gemini model experienced temporary high demand; generated from verified calculated figures.',
+      notice: isQuotaHit
+        ? 'Daily Free Tier quota for Gemini reached (20 requests/day). Serving verified deterministic executive summary grounded in calculated source figures. You can select a billing-enabled key in Settings > Secrets to increase quota.'
+        : 'Generated using verified deterministic calculation engine.',
     });
   } catch (err: any) {
-    console.error('Gemini API Error:', err);
     res.status(500).json({
       error: err?.message || 'Error generating AI summary',
       source: 'fallback-deterministic',
     });
   }
 });
+
 
 async function start() {
   if (process.env.NODE_ENV === 'production') {

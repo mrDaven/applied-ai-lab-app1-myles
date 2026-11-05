@@ -102,6 +102,7 @@ export interface AiSummaryResponse {
   sentences: string[];
   mostChangedRegionName: string;
   calculatedMetricsUsed: SalesAnalyticsPayload;
-  source: 'gemini-3.8-flash' | 'fallback-deterministic';
+  source: 'gemini-3.8-flash' | 'fallback-deterministic' | string;
   error?: string;
+  notice?: string;
 }

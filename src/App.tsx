@@ -91,6 +91,7 @@ export default function App() {
           mostChangedRegionName: data.mostChangedRegionName || currentAnalysis.mostChangedByDollar.region,
           calculatedMetricsUsed: payload,
           source: data.source || 'gemini-3.8-flash',
+          notice: data.notice,
         });
         setAiError(null);
       }
